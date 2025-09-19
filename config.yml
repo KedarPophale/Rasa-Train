@@ -1,0 +1,67 @@
+# The config version.
+version: "3.1"
+
+# Defines the NLU pipeline.
+# The pipeline defines how the NLU model processes user messages.
+pipeline:
+  # Language model for intent classification and entity extraction.
+  # 'en' specifies the English language.
+  - name: WhitespaceTokenizer
+  - name: RegexFeaturizer
+  - name: LexicalSyntacticFeaturizer
+  - name: CountVectorsFeaturizer
+  - name: CountVectorsFeaturizer
+    analyzer: char_wb
+    min_ngram: 1
+    max_ngram: 4
+  - name: DIETClassifier
+    # Model complexity. Higher values can capture more patterns but risk overfitting.
+    epochs: 100
+    # Helps the model generalize better to unseen examples.
+    constrain_similarities: true
+  - name: EntitySynonymMapper
+  - name: ResponseSelector
+    epochs: 50
+  - name: FallbackClassifier
+    # Threshold for intent recognition confidence. If below, trigger fallback.
+    threshold: 0.5
+    # The intent to trigger if confidence is low.
+    ambiguity_threshold: 0.1
+
+# Defines the dialogue management policies.
+# Policies decide which action the bot should take next.
+policies:
+  # Handles rules defined in rules.yml (e.g., greetings, goodbyes).
+  - name: RulePolicy
+    # Restrict rules to only apply at the beginning of a conversation.
+    core_fallback_threshold: 0.4
+    core_fallback_action_name: "action_default_fallback"
+    enable_fallback_prediction: true
+    # Confidence threshold for predicting a rule.
+    rule_confirmation_threshold: 0.8
+
+  # The main machine learning policy for handling conversations.
+  - name: TEDPolicy
+    max_history: 5 # Number of previous turns to consider.
+    epochs: 100
+    # Constrain similarities to improve generalization.
+    constrain_similarities: true
+
+  # Handles unexpected user input (e.g., off-topic messages).
+  - name: UnexpecTEDIntentPolicy
+    max_history: 5
+    epochs: 100
+
+  # Fallback policy that maps to a default action if other policies are uncertain.
+  - name: FallbackPolicy
+    # Core fallback threshold (for action prediction confidence).
+    nlu_threshold: 0.5 # Intent recognition confidence
+    core_threshold: 0.4 # Action prediction confidence
+    fallback_action_name: "action_default_fallback"
+
+# Configuration for the assistant's session.
+session_config:
+  # How long until a session expires (in seconds).
+  session_expiration_time: 60
+  # Whether to carry over slot values and active loops between sessions.
+  carry_over_slots_to_new_session: true
